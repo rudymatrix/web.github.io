@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>项目整合管理闯关挑战</title>
+    <style>
+        :root {
+            --primary: #FF6B6B;
+            --secondary: #4ECDC4;
+            --success: #A8E6CF;
+            --error: #FF9F43;
+            --bg: #F9F7F7;
+        }
+
+        body {
+            font-family: 'Comic Sans MS', cursive;
+            background: var(--bg);
+            color: #2D3436;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            padding: 30px;
+            position: relative;
+            overflow-y: auto;
+            max-height: 90vh;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            position: sticky;
+            top: 0;
+            background: white;
+            z-index: 1;
+            padding: 10px 0;
+        }
+
+        .score-board {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            padding: 12px 25px;
+            border-radius: 50px;
+            color: white;
+            font-size: 1.2em;
+        }
+
+        .question-card {
+            background: #FFF;
+            border: 3px solid var(--secondary);
+            border-radius: 20px;
+            padding: 25px;
+            margin: 20px 0;
+            position: relative;
+            transition: transform 0.3s;
+            min-height: 200px;
+        }
+
+        .q-type {
+            position: absolute;
+            top: -15px;
+            left: 20px;
+            background: var(--primary);
+            color: white;
+            padding: 8px 20px;
+            border-radius: 15px;
+            font-size: 0.9em;
+        }
+
+        .options {
+            display: grid;
+            gap: 15px;
+            margin: 25px 0;
+        }
+
+        .option {
+            padding: 15px;
+            border: 2px solid #DFE6E9;
+            border-radius: 15px;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: #F9F9F9;
+        }
+
+        .correct {
+            background: var(--success) !important;
+            border-color: #7BC67E !important;
+            animation: bounce 0.5s;
+        }
+
+        .wrong {
+            background: var(--error) !important;
+            border-color: #FF8B4D !important;
+            animation: shake 0.5s;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+
+        @keyframes shake {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(-8px); }
+            75% { transform: translateX(8px); }
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-top: 25px;
+            flex-wrap: wrap;
+            position: sticky;
+            bottom: 0;
+            background: white;
+            padding: 15px 0;
+        }
+
+        button {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: all 0.3s;
+        }
+
+        .progress-container {
+            height: 15px;
+            background: #EDF2F7;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 25px 0;
+            position: sticky;
+            top: 70px;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            width: 0;
+            transition: width 0.6s ease;
+        }
+
+        .stars {
+            display: flex;
+            gap: 5px;
+            align-items: center;
+        }
+
+        .answer-feedback {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 10px;
+            background: #f0f4ff;
+            animation: fadeIn 0.5s;
+        }
+
+        .explanation {
+            color: #666;
+            font-size: 0.9em;
+            margin-top: 10px;
+        }
+
+        .fill-input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid var(--secondary);
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .wrong-modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.2);
+            max-height: 80vh;
+            overflow-y: auto;
+            width: 90%;
+            max-width: 600px;
+        }
+
+        .wrong-item {
+            padding: 15px;
+            margin: 10px 0;
+            background: #fff3f3;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="score-board">
+                🏆 得分：<span id="score">0</span>/<span id="total">0</span>
+            </div>
+            <div class="stars">
+                ⭐<span id="starCount">0</span>
+            </div>
+        </div>
+
+        <div class="progress-container">
+            <div class="progress-bar"></div>
+        </div>
+
+        <div id="questionArea"></div>
+        
+        <div class="controls">
+            <button id="nextBtn" onclick="nextQuestion()" style="background: var(--secondary); color: white;">
+                ➡️ 下一题
+            </button>
+            <button onclick="showAnswer()" style="background: var(--primary); color: white;">
+                🔍 显示答案
+            </button>
+            <button onclick="showWrongBook()" style="background: #6C5CE7; color: white;">
+                📖 错题本
+            </button>
+            <button onclick="restartGame()" class="restart-btn">
+                🔄 重新开始
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // 完整题库数据
+        const questions = [
+    {
+      "type": "choice",
+      "question": "项目整合管理的目标不包括以下哪项？",
+      "options": ["资源分配", "平衡竞争性需求", "完全消除风险", "管理知识领域依赖关系"],
+      "answer": "C",
+      "ref": "管理基础一执行整合",
+      "page": "第八章"
+    },
+    {
+      "type": "fill",
+      "question": "项目经理在整合管理中的双重角色包括组织层面的战略对齐和项目层面的______。",
+      "answer": "指导团队协同工作",
+      "ref": "管理基础一执行整合",
+      "page": "第八章"
+    },
+    {
+      "type": "choice",
+      "question": "以下哪项是整合复杂性的典型表现？",
+      "options": ["线性因果关系", "部分简单相加", "突发性行为", "静态结构"],
+      "answer": "C",
+      "ref": "管理基础一整合的复杂性",
+      "page": "第八章"
+    },
+    {
+      "type": "qa",
+      "question": "列举三种项目管理新实践中提到的工具类型。",
+      "answer": "信息化工具、可视化管理工具、知识管理系统",
+      "ref": "管理基础一管理新实践",
+      "page": "第八章"
+    },
+    {
+      "type": "choice",
+      "question": "项目章程的批准标志着项目的什么阶段？",
+      "options": ["规划启动", "正式启动", "执行开始", "收尾完成"],
+      "answer": "B",
+      "ref": "制定项目章程-概述",
+      "page": "第八章"
+    },
+    {
+      "type": "fill",
+      "question": "项目启动时，预先批准的财务资源应记录在______文件中。",
+      "answer": "项目章程",
+      "ref": "制定项目章程输出",
+      "page": "第八章"
+    },
+    {
+      "type": "choice",
+      "question": "下列哪项不属于变更请求的类型？",
+      "options": ["预防措施", "缺陷补救", "范围蔓延", "更新"],
+      "answer": "C",
+      "ref": "指导与管理项目工作输出",
+      "page": "第八章"
+    },
+    {
+      "type": "qa",
+      "question": "简述显性知识与隐性知识的主要区别。",
+      "answer": "显性知识可编码传播（如文档），隐性知识难以明确表达（如经验）",
+      "ref": "管理项目知识—概述",
+      "page": "第八章"
+    },
+    {
+      "type": "choice",
+      "question": "工作绩效数据转化为工作绩效信息的过程发生在哪个阶段？",
+      "options": ["监控过程", "执行过程", "规划过程", "收尾过程"],
+      "answer": "A",
+      "ref": "监控项目工作—输入",
+      "page": "第八章"
+    },
+    {
+      "type": "fill",
+      "question": "项目知识管理的核心目的是实现______并支持组织学习。",
+      "answer": "项目目标",
+      "ref": "管理项目知识",
+      "page": "第八章"
+    },
+    {
+      "type": "choice",
+      "question": "下列哪项是配置管理系统的主要功能？",
+      "options": ["编制进度计划", "版本控制", "成本估算", "风险分析"],
+      "answer": "B",
+      "ref": "指导与管理项目工作—工具与技术",
+      "page": "第八章"
+    },
+    {
+      "type": "qa",
+      "question": "项目管理计划基准化后，为何需要变更控制流程？",
+      "answer": "确保对基准的任何修改均经过正式评审，维持项目可控性",
+      "ref": "制订项目管理计划",
+      "page": "第八章"
+    },
+    {
+      "type": "choice",
+      "question": "混合型方法在整合管理中的典型应用是？",
+      "options": ["仅用预测法", "结合敏捷与瀑布", "取消变更控制", "减少干系人参与"],
+      "answer": "B",
+      "ref": "管理基础一管理新实践",
+      "page": "第八章"
+    },
+    {
+      "type": "fill",
+      "question": "______用于跟踪所有未解决问题及其状态，首次创建于指导与管理项目工作过程。",
+      "answer": "问题日志",
+      "ref": "指导与管理项目工作—输出",
+      "page": "第八章"
+    },
+    {
+      "type": "choice",
+      "question": "项目退出标准应在哪个文件中明确？",
+      "options": ["需求文档", "项目章程", "风险管理计划", "沟通计划"],
+      "answer": "B",
+      "ref": "制定项目章程输出",
+      "page": "第八章"
+    },
+    {
+      "type": "qa",
+      "question": "列举三种数据收集技术及其在制定项目章程中的应用场景。",
+      "answer": "头脑风暴（创意生成）、焦点小组（互动讨论）、访谈（获取高层需求）",
+      "ref": "制定项目章程工具与技术",
+      "page": "第八章"
+    },
+    {
+      "type": "choice",
+      "question": "经验教训登记册最终应归入何处？",
+      "options": ["项目档案", "组织过程资产", "个人笔记", "废弃文件"],
+      "answer": "B",
+      "ref": "管理项目知识—输出",
+      "page": "第八章"
+    },
+    {
+      "type": "fill",
+      "question": "______分析用于确定偏差的根本原因，帮助制定针对性纠正措施。",
+      "answer": "根本原因",
+      "ref": "监控项目工作—工具与技术",
+      "page": "第八章"
+    },
+    {
+      "type": "choice",
+      "question": "下列哪项是可视化管理工具的主要作用？",
+      "options": ["替代沟通", "隐藏项目状态", "直观展示关键要素", "增加文档复杂度"],
+      "answer": "C",
+      "ref": "管理基础一管理新实践",
+      "page": "第八章"
+    },
+    {
+      "type": "qa",
+      "question": "描述项目管理计划与项目文件的核心区别。",
+      "answer": "计划是正式基准文件（如范围基准），文件是辅助信息（如问题日志）",
+      "ref": "管理基础一项目管理计划和项目文件",
+      "page": "第八章"
+    },
+    {
+      "type": "choice",
+      "question": "实施整体变更控制的最终决策权属于？",
+      "options": ["项目经理", "项目团队", "变更控制委员会", "客户代表"],
+      "answer": "C",
+      "ref": "实施整体变更控制-概述",
+      "page": "第八章"
+    },
+    {
+      "type": "fill",
+      "question": "______会议用于制定章程时促成干系人共识，需引导者主持。",
+      "answer": "焦点小组",
+      "ref": "制定项目章程工具与技术",
+      "page": "第八章"
+    },
+    {
+      "type": "choice",
+      "question": "项目生命周期描述属于项目管理计划的哪个部分？",
+      "options": ["子管理计划", "基准", "其他组件", "项目文件"],
+      "answer": "C",
+      "ref": "制订项目管理计划—输出",
+      "page": "第八章"
+    },
+    {
+      "type": "qa",
+      "question": "解释配置管理系统在指导项目工作中的具体作用。",
+      "answer": "管理可交付成果版本，确保变更受控且可追溯",
+      "ref": "指导与管理项目工作—工具与技术",
+      "page": "第八章"
+    },
+    {
+      "type": "choice",
+      "question": "下列哪项不是制定项目章程的输入？",
+      "options": ["协议", "事业环境因素", "风险管理计划", "立项管理文件"],
+      "answer": "C",
+      "ref": "制定项目章程一输入",
+      "page": "第八章"
+    },
+    {
+      "type": "fill",
+      "question": "______技术通过历史数据预测未来绩效，常用于监控进度偏差。",
+      "answer": "趋势分析",
+      "ref": "监控项目工作—工具与技术",
+      "page": "第八章"
+    },
+    {
+      "type": "choice",
+      "question": "项目效益管理属于项目经理在哪个层面的职责？",
+      "options": ["项目执行层面", "组织战略层面", "团队操作层面", "客户沟通层面"],
+      "answer": "B",
+      "ref": "管理基础一管理新实践",
+      "page": "第八章"
+    },
+    {
+      "type": "qa",
+      "question": "说明变更日志在整体变更控制中的用途。",
+      "answer": "记录所有变更请求的状态、审批及实施结果，便于跟踪审计",
+      "ref": "实施整体变更控制",
+      "page": "第八章"
+    },
+    {
+      "type": "choice",
+      "question": "结束项目时，经验教训总结主要输出到？",
+      "options": ["项目章程", "组织过程资产", "工作绩效报告", "风险登记册"],
+      "answer": "B",
+      "ref": "管理项目知识—输出",
+      "page": "第八章"
+    },
+    {
+      "type": "fill",
+      "question": "______计划定义了如何对项目变更进行正式审查和批准。",
+      "answer": "变更管理",
+      "ref": "制订项目管理计划—输出",
+      "page": "第八章"
+    },
+    {
+      "type": "choice",
+      "question": "下列哪项是焦点小组与访谈的主要区别？",
+      "options": ["参与人数", "文档记录", "使用工具", "数据分析方法"],
+      "answer": "A",
+      "ref": "制定项目章程工具与技术",
+      "page": "第八章"
+    }
+    // 更多题目...
+        ].sort(() => Math.random() - 0.5); // 初始随机排序;
+
+        // 游戏状态管理
+        const gameState = {
+            currentIndex: 0,
+            score: 0,
+            stars: 0,
+            wrongAnswers: [],
+            total: questions.length,
+            get progress() {
+                return ((this.currentIndex) / this.total * 100).toFixed(1)
+            }
+        };
+
+        // DOM缓存
+        const dom = {
+            questionArea: document.getElementById('questionArea'),
+            score: document.getElementById('score'),
+            total: document.getElementById('total'),
+            starCount: document.getElementById('starCount'),
+            progressBar: document.querySelector('.progress-bar'),
+            nextBtn: document.getElementById('nextBtn')
+        };
+
+        // 初始化游戏
+        function initGame() {
+            gameState.currentIndex = 0;
+            gameState.score = 0;
+            gameState.stars = 0;
+            gameState.wrongAnswers = [];
+            dom.total.textContent = questions.length;
+            renderQuestion();
+            updateUI();
+        }
+
+        // 渲染题目
+        function renderQuestion() {
+            const q = questions[gameState.currentIndex];
+            let html = `
+                <div class="question-card">
+                    <div class="q-type">${q.type.toUpperCase()}</div>
+                    <h3>${q.question}</h3>`;
+
+            if (q.type === 'choice') {
+                html += `<div class="options">${q.options.map((opt, i) => `
+                    <div class="option" data-key="${String.fromCharCode(65 + i)}">
+                        ${String.fromCharCode(65 + i)}. ${opt}
+                    </div>`).join('')}
+                </div>`;
+            } else if (q.type === 'fill') {
+                html += `<input type="text" class="fill-input" placeholder="请输入答案">`;
+            } else if (q.type === 'qa') {
+                html += `<textarea class="qa-input" placeholder="请输入您的回答"></textarea>`;
+            }
+
+            dom.questionArea.innerHTML = html;
+            bindEvents();
+            updateProgress();
+        }
+
+        // 事件绑定
+        function bindEvents() {
+            dom.questionArea.addEventListener('click', handleChoice);
+            const input = dom.questionArea.querySelector('.fill-input, .qa-input');
+            if (input) input.addEventListener('blur', handleInput);
+        }
+
+        // 处理选择题
+        function handleChoice(e) {
+            const option = e.target.closest('.option');
+            if (option && !dom.questionArea.querySelector('.answer-feedback')) {
+                handleAnswer(option.dataset.key);
+            }
+        }
+
+        // 处理输入题
+        function handleInput(e) {
+            if (!dom.questionArea.querySelector('.answer-feedback')) {
+                handleAnswer(e.target.value.trim());
+            }
+        }
+
+        // 处理答案
+        function handleAnswer(answer) {
+            const q = questions[gameState.currentIndex];
+            const isCorrect = checkAnswer(q, answer);
+            
+            showFeedback(q, answer, isCorrect);
+            updateScore(isCorrect);
+            recordWrongAnswer(q, answer, isCorrect);
+            updateStars(isCorrect);
+            dom.nextBtn.disabled = false;
+        }
+
+        // 检查答案正确性
+        function checkAnswer(q, answer) {
+            if (q.type === 'choice') return answer.toUpperCase() === q.answer;
+            return answer === q.answer;
+        }
+
+        // 显示反馈
+        function showFeedback(q, userAnswer, isCorrect) {
+            let feedback = '';
+            const correctAnswer = q.type === 'choice' ? `${q.answer}. ${q.options[q.answer.charCodeAt(0)-65]}` : q.answer;
+
+            if (q.type === 'choice') {
+                dom.questionArea.querySelectorAll('.option').forEach(opt => {
+                    opt.classList.toggle('correct', opt.dataset.key === q.answer);
+                    opt.classList.toggle('wrong', !isCorrect && opt.dataset.key === userAnswer);
+                });
+            }
+
+            feedback += `<div class="answer-feedback">
+                ${isCorrect ? '✅ 正确！获得⭐+1' : `❌ 错误！正确答案：${correctAnswer}`}
+                <div class="explanation">解析：${q.ref}（${q.page}）</div>
+            </div>`;
+
+            dom.questionArea.insertAdjacentHTML('beforeend', feedback);
+        }
+
+        // 更新分数和星星
+        function updateScore(isCorrect) {
+            if (isCorrect) {
+                gameState.score++;
+                dom.score.textContent = gameState.score;
+            }
+        }
+
+        function updateStars(isCorrect) {
+            if (isCorrect) {
+                gameState.stars++;
+                dom.starCount.textContent = gameState.stars;
+            }
+        }
+
+        // 记录错题
+        function recordWrongAnswer(q, userAnswer, isCorrect) {
+            if (!isCorrect) {
+                gameState.wrongAnswers.push({
+                    question: q.question,
+                    userAnswer: userAnswer,
+                    correctAnswer: q.answer,
+                    explanation: `${q.ref}（${q.page}）`
+                });
+            }
+        }
+
+        // 更新进度条
+        function updateProgress() {
+            dom.progressBar.style.width = `${gameState.progress}%`;
+        }
+
+        // 下一题
+        function nextQuestion() {
+            if (gameState.currentIndex < questions.length - 1) {
+                gameState.currentIndex++;
+                renderQuestion();
+                dom.nextBtn.disabled = true;
+            } else {
+                alert(`游戏结束！最终得分：${gameState.score}/${questions.length}`);
+            }
+        }
+
+        // 显示答案
+        function showAnswer() {
+            const q = questions[gameState.currentIndex];
+            alert(`正确答案：${q.answer}\n解析：${q.ref}（${q.page}）`);
+        }
+
+        // 显示错题本
+        function showWrongBook() {
+            const modal = document.createElement('div');
+            modal.className = 'wrong-modal';
+            modal.innerHTML = `
+                <h3>错题本（${gameState.wrongAnswers.length}题）</h3>
+                ${gameState.wrongAnswers.map((item, i) => `
+                    <div class="wrong-item">
+                        <div>问题：${item.question}</div>
+                        <div>您的答案：${item.userAnswer}</div>
+                        <div>正确答案：${item.correctAnswer}</div>
+                        <div class="explanation">解析：${item.explanation}</div>
+                    </div>
+                `).join('')}
+                <button onclick="this.parentElement.remove()" style="margin-top:15px;width:100%">关闭</button>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        // 重新开始
+        function restartGame() {
+            if (confirm('确定要重新开始吗？当前进度将丢失！')) {
+                initGame();
+            }
+        }
+
+        // 启动游戏
+        initGame();
+    </script>
+</body>
+</html>
